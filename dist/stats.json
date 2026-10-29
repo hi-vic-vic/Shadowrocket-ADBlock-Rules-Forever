@@ -1,14 +1,5 @@
 {
   "sources": {
-    "local_sr_ad_only": {
-      "domain_suffix": 50647,
-      "domain_exact": 0,
-      "ip": 128,
-      "invalid": 0,
-      "unsafe_suffix": 0,
-      "only_in_upstream_ad_config_suffix": 0,
-      "only_in_upstream_ad_config_ip": 0
-    },
     "blackmatrix7_domain": {
       "domain_suffix": 273956,
       "domain_exact": 16436,
@@ -53,10 +44,10 @@
     }
   },
   "dedupe": {
-    "duplicate_suffix": 137783,
-    "covered_by_parent_suffix": 2978,
+    "duplicate_suffix": 87869,
+    "covered_by_parent_suffix": 2579,
     "duplicate_exact": 0,
-    "exact_covered_by_suffix": 1965,
+    "exact_covered_by_suffix": 1964,
     "ip": {
       "invalid": 0,
       "dropped_non_global_or_too_broad": [
@@ -64,31 +55,31 @@
         "10.72.25.0/24",
         "169.254.169.254/32"
       ],
-      "duplicate_or_covered": 114,
-      "kept": 500,
+      "duplicate_or_covered": 0,
+      "kept": 486,
       "removed_by_allow": 0
     }
   },
   "final": {
-    "domain_suffix": 284528,
-    "domain_exact": 14471,
-    "domain_total": 298999,
-    "ip": 500,
+    "domain_suffix": 284194,
+    "domain_exact": 14472,
+    "domain_total": 298666,
+    "ip": 486,
     "url_regex": 12,
     "user_keyword": 0,
     "allow_exceptions": 0,
     "keyword_excluded": 278,
     "domains_first_added_by": {
-      "local": 50243,
-      "blackmatrix7": 238993,
-      "anti_ad": 9763,
+      "blackmatrix7": 288183,
+      "anti_ad": 10483,
       "extra_block": 0
     }
   },
   "decisions": {
     "domain_keyword": "blackmatrix7 的 DOMAIN-KEYWORD 默认不进入生效规则，写入 dist/ad-keyword.list。advert、crashlytics、fenxi、umeng 这类关键字误杀高，而且 crashlytics 已在上游 skip-proxy 里被保留。",
     "url_regex": "只保留能锚定到具体广告域名的 URL-REGEX。纯路径片段（例如 /\\d+/resolve）丢弃。HTTPS 上的 URL-REGEX 需要 Shadowrocket 的 MITM 才会看得到路径。",
-    "ip": "保留全球单播地址。去掉私网、链路本地和 0.0.0.0/8。被更大网段盖住的小网段删掉。同一网段若本仓库规则没有 no-resolve，则保留解析匹配。",
+    "ip": "只使用 blackmatrix7 Advertising.list 和自定义额外名单里的 IP。保留全球单播地址，去掉私网、链路本地和 0.0.0.0/8，并删掉被更大网段盖住的小网段。blackmatrix7 的 IP 带 no-resolve。",
+    "excluded_local_ads": "不并入 johnshall 的 sr_ad_only.conf，也不并入上游配置里原来的内联广告段。",
     "config_order": "黑名单与国内外划分：内联 Reject 放在上游原来的广告段，手工 Proxy 仍在广告之前。白名单：内联 Reject 放在直连/代理规则之前。"
   }
 }
