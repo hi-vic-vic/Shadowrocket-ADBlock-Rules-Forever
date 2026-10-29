@@ -1,7 +1,7 @@
 name: Merge ad-block rules
 
-# 每天北京时间 08:00 重新拉取上游黑/白名单和外部广告名单，合并后写回 release。
-# 三份广告配置用 DOMAIN-SET / RULE-SET 引用 dist/ 里的合并名单。
+# 每天北京时间 08:00 从 johnshall/Shadowrocket-ADBlock-Rules-Forever 的 release
+# 拉取最新黑名单、白名单配置，保留其中的代理/直连规则，换成 dist/ 里的广告引用。
 # 内容没有变化时不产生空提交。
 on:
   schedule:

@@ -6,21 +6,18 @@ Sources:
   - anti-AD anti-ad-surge2.txt (DOMAIN-SET)
   - custom/ad-allow.list and custom/ad-block.list
 
-The upstream johnshall ad list (sr_ad_only.conf and the inline Reject
-section of the ad configs) is not merged. Those configs are only used
-as the skeleton for proxy/direct rules.
+The upstream johnshall ad list is not merged. sr_top500_banlist_ad.conf
+and sr_top500_whitelist_ad.conf on johnshall's release branch are only
+skeletons: their proxy/direct rules are kept, and their inline Reject
+section is replaced with DOMAIN-SET / RULE-SET references.
 
 Outputs:
   - sr_top500_banlist_ad.conf    blacklist proxy rules + DOMAIN-SET/RULE-SET ads
   - sr_top500_whitelist_ad.conf  whitelist direct/proxy rules + DOMAIN-SET/RULE-SET ads
-  - sr_cnip_ad.conf              China/foreign split + DOMAIN-SET/RULE-SET ads
   - dist/ad-domain.list          DOMAIN-SET referenced by the configs
   - dist/ad-rules.list           RULE-SET (IP-CIDR / URL-REGEX / user keywords)
-  - dist/ad-keyword.list         optional DOMAIN-KEYWORD, not referenced
   - dist/ad-allow.list           DIRECT exceptions, referenced only when needed
   - dist/stats.json
-
-Non-ad upstream files are refreshed in place when upstream content changes.
 """
 
 from __future__ import annotations
@@ -57,21 +54,6 @@ ANTI_BRANCH = "master"
 AD_CONFIGS = (
     "sr_top500_banlist_ad.conf",
     "sr_top500_whitelist_ad.conf",
-    "sr_cnip_ad.conf",
-)
-PLAIN_CONFIGS = (
-    "sr_top500_banlist.conf",
-    "sr_top500_whitelist.conf",
-    "sr_cnip.conf",
-    "sr_ad_only.conf",
-    # 其余上游配置保持原文，只在每日任务里跟着 release 分支更新。
-    "sr_adb.conf",
-    "sr_backcn.conf",
-    "sr_backcn_ad.conf",
-    "sr_direct_banad.conf",
-    "sr_proxy_banad.conf",
-    "lazy.conf",
-    "lazy_group.conf",
 )
 
 SRC_LOCAL = "local"
@@ -228,11 +210,9 @@ def load_remote(cache_name: str, url: str, git_loader) -> tuple[str, str]:
     local = ROOT / cache_name
     if local.exists():
         text = local.read_text(encoding="utf-8", errors="replace")
-        usable = ",Reject" in text or cache_name.endswith(".list") or cache_name.endswith(".txt")
-        # Plain upstream configs and ad configs that still contain Reject rules.
-        if cache_name in PLAIN_CONFIGS or text.count(",Reject") > 1000 or not usable:
-            if cache_name in PLAIN_CONFIGS or text.count(",Reject") > 1000:
-                return text, "workspace"
+        # Only an upstream ad config still full of inline Reject rules is a valid skeleton.
+        if text.count(",Reject") > 1000:
+            return text, "workspace"
     raise SystemExit(f"无法获取 {cache_name} ({url})")
 
 
@@ -281,7 +261,7 @@ def fetch_inputs() -> dict[str, tuple[str, str]]:
             anti_file,
         ),
     ]
-    for name in (*AD_CONFIGS, *PLAIN_CONFIGS):
+    for name in AD_CONFIGS:
         wanted.append((name, raw_url(UPSTREAM_REPO, UPSTREAM_BRANCH, name), lambda n=name: up_file(n)))
 
     loaded: dict[str, tuple[str, str]] = {}
@@ -596,7 +576,6 @@ def render_reference_block(include_allow: bool) -> list[str]:
         lines.append(f"RULE-SET,{RAW_BASE}/dist/ad-allow.list,DIRECT")
     lines.append(f"DOMAIN-SET,{RAW_BASE}/dist/ad-domain.list,REJECT")
     lines.append(f"RULE-SET,{RAW_BASE}/dist/ad-rules.list,REJECT")
-    lines.append("# 可选：dist/ad-keyword.list 是 blackmatrix7 的 DOMAIN-KEYWORD，默认不启用。")
     lines.append(END_MARK)
     lines.append("")
     return lines
@@ -634,10 +613,6 @@ def significant_rules(lines: list[str]) -> list[str]:
 def write_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8", newline="\n")
-
-
-def same_text(left: str, right: str) -> bool:
-    return left.replace("\r\n", "\n").rstrip("\n") == right.replace("\r\n", "\n").rstrip("\n")
 
 
 def domain_under(domain: str, suffix: str) -> bool:
@@ -837,7 +812,7 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
             "domains_first_added_by": by_source,
         },
         "decisions": {
-            "domain_keyword": "blackmatrix7 的 DOMAIN-KEYWORD 默认不进入生效规则，写入 dist/ad-keyword.list。advert、crashlytics、fenxi、umeng 这类关键字误杀高，而且 crashlytics 已在上游 skip-proxy 里被保留。",
+            "domain_keyword": "blackmatrix7 的 DOMAIN-KEYWORD 不进入生效规则。advert、crashlytics、fenxi、umeng 这类关键字误杀高，而且 crashlytics 已在上游 skip-proxy 里被保留。",
             "url_regex": "只保留能锚定到具体广告域名的 URL-REGEX。纯路径片段（例如 /\\d+/resolve）丢弃。HTTPS 上的 URL-REGEX 需要 Shadowrocket 的 MITM 才会看得到路径。",
             "ip": "只使用 blackmatrix7 Advertising.list 和自定义额外名单里的 IP。保留全球单播地址，去掉私网、链路本地和 0.0.0.0/8，并删掉被更大网段盖住的小网段。blackmatrix7 的 IP 带 no-resolve。",
             "excluded_local_ads": "不并入 johnshall 的 sr_ad_only.conf，也不并入上游配置里原来的内联广告段。",
@@ -851,7 +826,6 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
     block = render_reference_block(bool(exceptions))
     write_outputs(suffixes, exact, kept_ips, regexes, user_keywords, excluded_keywords, exceptions, stats)
     write_configs(loaded, block)
-    refresh_plain_configs(loaded)
     return stats
 
 
@@ -885,19 +859,14 @@ def write_outputs(suffixes, exact, kept_ips, regexes, user_keywords, excluded_ke
     rule_lines.extend(f"DOMAIN-KEYWORD,{keyword}" for keyword in user_keywords)
     write_text(DIST / "ad-rules.list", "\n".join(rule_lines) + "\n")
 
-    keyword_lines = [
-        "# 可选 DOMAIN-KEYWORD。默认配置不引用这个文件。",
-        "# 若确认能接受误杀，可在 [Rule] 里手动加入：",
-        f"# RULE-SET,{RAW_BASE}/dist/ad-keyword.list,REJECT",
-        f"# count: {len(excluded_keywords)}",
-    ]
-    keyword_lines.extend(f"DOMAIN-KEYWORD,{keyword}" for keyword in excluded_keywords)
-    write_text(DIST / "ad-keyword.list", "\n".join(keyword_lines) + "\n")
+    keyword_path = DIST / "ad-keyword.list"
+    if keyword_path.exists():
+        keyword_path.unlink()
 
     if exceptions:
         allow_lines = [
             "# Shadowrocket RULE-SET，在配置里以 DIRECT 引用，并且放在广告 DOMAIN-SET 之前。",
-            "# 这些域名被一条更短的广告后缀盖住。三份 .conf 会在 DOMAIN-SET 之前用 DIRECT 引用本文件。",
+            "# 这些域名被一条更短的广告后缀盖住。两份 .conf 会在 DOMAIN-SET 之前用 DIRECT 引用本文件。",
         ]
         allow_lines.extend(f"{kind},{domain}" for kind, domain in exceptions)
         write_text(DIST / "ad-allow.list", "\n".join(allow_lines) + "\n")
@@ -924,18 +893,6 @@ def write_configs(loaded: dict[str, tuple[str, str]], block: list[str]) -> None:
             raise SystemExit(f"{name} 广告引用异常: reject={reject_count}")
         write_text(ROOT / name, rebuilt)
         print(f"写出 {name}: 保留非广告规则 {len(after)} 条")
-
-
-def refresh_plain_configs(loaded: dict[str, tuple[str, str]]) -> None:
-    for name in PLAIN_CONFIGS:
-        text, how = loaded[name]
-        if how == "workspace":
-            continue
-        current = (ROOT / name).read_text(encoding="utf-8", errors="replace") if (ROOT / name).exists() else ""
-        if same_text(current, text):
-            continue
-        write_text(ROOT / name, text.replace("\r\n", "\n").rstrip("\n") + "\n")
-        print(f"同步上游 {name}")
 
 
 def self_test() -> None:
@@ -1067,10 +1024,8 @@ def print_summary(stats: dict) -> None:
     for path in (
         DIST / "ad-domain.list",
         DIST / "ad-rules.list",
-        DIST / "ad-keyword.list",
         ROOT / "sr_top500_banlist_ad.conf",
         ROOT / "sr_top500_whitelist_ad.conf",
-        ROOT / "sr_cnip_ad.conf",
     ):
         data = path.read_bytes()
         print(f"{path.relative_to(ROOT)}: {data.count(bchr_newline())} 行, {len(data)} 字节")
