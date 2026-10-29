@@ -80,6 +80,6 @@
     "url_regex": "只保留能锚定到具体广告域名的 URL-REGEX。纯路径片段（例如 /\\d+/resolve）丢弃。HTTPS 上的 URL-REGEX 需要 Shadowrocket 的 MITM 才会看得到路径。",
     "ip": "只使用 blackmatrix7 Advertising.list 和自定义额外名单里的 IP。保留全球单播地址，去掉私网、链路本地和 0.0.0.0/8，并删掉被更大网段盖住的小网段。blackmatrix7 的 IP 带 no-resolve。",
     "excluded_local_ads": "不并入 johnshall 的 sr_ad_only.conf，也不并入上游配置里原来的内联广告段。",
-    "config_order": "黑名单与国内外划分：内联 Reject 放在上游原来的广告段，手工 Proxy 仍在广告之前。白名单：内联 Reject 放在直连/代理规则之前。"
+    "config_order": "黑名单与国内外划分：DOMAIN-SET/RULE-SET 放在上游原来的广告段，手工 Proxy 仍在广告之前。白名单：引用放在直连/代理规则之前。"
   }
 }

@@ -1,8 +1,7 @@
 name: Merge ad-block rules
 
 # 每天北京时间 08:00 重新拉取上游黑/白名单和外部广告名单，合并后写回 release。
-# 三份广告配置把合并结果内联成 DOMAIN-SUFFIX/IP-CIDR,...,Reject。
-# dist/*.list 仍会生成，作为可选的 DOMAIN-SET/RULE-SET。
+# 三份广告配置用 DOMAIN-SET / RULE-SET 引用 dist/ 里的合并名单。
 # 内容没有变化时不产生空提交。
 on:
   schedule:
