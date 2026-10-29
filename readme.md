@@ -2,11 +2,12 @@
 
 ## 本 fork 的合并去广告
 
-这个仓库是 [johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/johnshall/Shadowrocket-ADBlock-Rules-Forever) 的 fork。黑名单、白名单、国内外划分里的代理/直连规则仍与上游一致。广告段和上游一样，直接写成 `DOMAIN-SUFFIX,域名,Reject`、`DOMAIN,域名,Reject`、`IP-CIDR,...,Reject`，位置也与上游原来的广告段相同。名单是这三份合并、去重之后的结果：
+这个仓库是 [johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/johnshall/Shadowrocket-ADBlock-Rules-Forever) 的 fork。黑名单、白名单、国内外划分里的代理/直连规则仍与上游一致。广告段和上游一样，直接写成 `DOMAIN-SUFFIX,域名,Reject`、`DOMAIN,域名,Reject`、`IP-CIDR,...,Reject`，位置也与上游原来的广告段相同。名单是这两份外部来源合并、去重之后的结果：
 
-- 本仓库自己的广告规则（上游 `sr_ad_only.conf`）
-- [blackmatrix7 Advertising](https://github.com/blackmatrix7/ios_rule_script/tree/master/rule/Shadowrocket/Advertising)
+- [blackmatrix7 Advertising](https://github.com/blackmatrix7/ios_rule_script/tree/master/rule/Shadowrocket/Advertising) 的域名，以及 `Advertising.list` 里的 IP-CIDR 和锚定到域名的 URL-REGEX
 - [anti-AD](https://github.com/privacy-protection-tools/anti-AD) 的 `anti-ad-surge2.txt`（DOMAIN-SET，行首 `.` 表示后缀）
+
+本仓库原来的广告规则（`sr_ad_only.conf` 和上游配置里的内联广告段）不进入合并结果。黑名单、白名单、国内外划分的代理/直连规则保持上游原样。
 
 合并时会去掉重复域名，以及已经被更短父后缀盖住的域名。`custom/ad-allow.list` 用来放行，`custom/ad-block.list` 用来追加拦截。GitHub Actions 每天北京时间 08:00 重新生成这三份内联配置，也可以在 Actions 页面手动运行 **Merge ad-block rules**。只有内容变化时才会提交。
 

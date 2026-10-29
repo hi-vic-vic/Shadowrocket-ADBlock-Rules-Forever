@@ -2,9 +2,13 @@
 """Merge Shadowrocket ad-block lists and rebuild fork configs.
 
 Sources:
-  - this repo's upstream ad rules (sr_ad_only.conf, johnshall release)
   - blackmatrix7 Advertising_Domain.list + Advertising.list
   - anti-AD anti-ad-surge2.txt (DOMAIN-SET)
+  - custom/ad-allow.list and custom/ad-block.list
+
+The upstream johnshall ad list (sr_ad_only.conf and the inline Reject
+section of the ad configs) is not merged. Those configs are only used
+as the skeleton for proxy/direct rules.
 
 Outputs:
   - sr_top500_banlist_ad.conf    blacklist proxy rules + inlined Reject ads
@@ -587,7 +591,7 @@ def render_inline_block(suffixes, exact, kept_ips, regexes, user_keywords, excep
     lines = [
         "",
         BEGIN_MARK,
-        "# 合并去广告：本仓库广告规则 + blackmatrix7 Advertising + anti-AD",
+        "# 合并去广告：blackmatrix7 Advertising + anti-AD",
         "# 与上游相同，直接写成 Reject 行。dist/*.list 是同一份名单的可选 DOMAIN-SET/RULE-SET。",
         f"# domain-suffix: {len(suffix_domains)}",
         f"# domain: {len(exact_domains)}",
@@ -688,30 +692,11 @@ def apply_allow(trie: SuffixTrie, exact: dict[str, str], allow: dict) -> list[tu
 
 
 def build(loaded: dict[str, tuple[str, str]]) -> dict:
-    local = ingest(loaded["sr_ad_only.conf"][0], "adconf")
     bm7_domains = ingest(loaded["Advertising_Domain.list"][0], "domainset")
     bm7_rules = ingest(loaded["Advertising.list"][0], "rules")
     anti = ingest(loaded["anti-ad-surge2.txt"][0], "domainset")
     extra = ingest((ROOT / "custom" / "ad-block.list").read_text(encoding="utf-8"), "rules")
     allow = ingest((ROOT / "custom" / "ad-allow.list").read_text(encoding="utf-8"), "rules")
-
-    # Union any Reject domains that exist only inside upstream ad configs.
-    skeleton_only_suffix = 0
-    skeleton_only_ip = 0
-    local_suffix = set(local["suffix"])
-    local_ip = {cidr for cidr, _flag in local["ip"]}
-    for name in AD_CONFIGS:
-        skeleton = ingest(loaded[name][0], "adconf")
-        for domain in skeleton["suffix"]:
-            if domain not in local_suffix:
-                local["suffix"].append(domain)
-                local_suffix.add(domain)
-                skeleton_only_suffix += 1
-        for cidr, flag in skeleton["ip"]:
-            if cidr not in local_ip:
-                local["ip"].append((cidr, flag))
-                local_ip.add(cidr)
-                skeleton_only_ip += 1
 
     trie = SuffixTrie()
     exact: dict[str, str] = {}
@@ -720,7 +705,6 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
         for domain in domains:
             trie.add(domain, src)
 
-    feed_suffixes(local["suffix"], SRC_LOCAL)
     feed_suffixes(bm7_domains["suffix"], SRC_BM7)
     feed_suffixes(bm7_rules["suffix"], SRC_BM7)
     feed_suffixes(anti["suffix"], SRC_ANTI)
@@ -740,7 +724,6 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
                 continue
             exact[domain] = src
 
-    feed_exact_counted(local["exact"], SRC_LOCAL)
     feed_exact_counted(bm7_domains["exact"], SRC_BM7)
     feed_exact_counted(bm7_rules["exact"], SRC_BM7)
     feed_exact_counted(anti["exact"], SRC_ANTI)
@@ -765,7 +748,6 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
                 raise SystemExit(f"父后缀去重失败: {parent} 仍覆盖 {domain}")
 
     ip_entries: list[tuple[str, bool, str]] = []
-    ip_entries.extend((cidr, flag, SRC_LOCAL) for cidr, flag in local["ip"])
     ip_entries.extend((cidr, flag, SRC_BM7) for cidr, flag in bm7_rules["ip"])
     ip_entries.extend((cidr, flag, SRC_EXTRA) for cidr, flag in extra["ip"])
     kept_ips, ip_stats = merge_ips(ip_entries)
@@ -800,7 +782,7 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
     user_keywords = sorted(set(extra["keyword"]))
     excluded_keywords = sorted(set(bm7_rules["keyword"]))
 
-    by_source = {SRC_LOCAL: 0, SRC_BM7: 0, SRC_ANTI: 0, SRC_EXTRA: 0}
+    by_source = {SRC_BM7: 0, SRC_ANTI: 0, SRC_EXTRA: 0}
     for _domain, src in suffixes:
         by_source[src] = by_source.get(src, 0) + 1
     for src in exact.values():
@@ -808,15 +790,6 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
 
     stats = {
         "sources": {
-            "local_sr_ad_only": {
-                "domain_suffix": len(local["suffix"]) - skeleton_only_suffix,
-                "domain_exact": len(local["exact"]),
-                "ip": len(local["ip"]) - skeleton_only_ip,
-                "invalid": local["invalid"],
-                "unsafe_suffix": local["unsafe_suffix"],
-                "only_in_upstream_ad_config_suffix": skeleton_only_suffix,
-                "only_in_upstream_ad_config_ip": skeleton_only_ip,
-            },
             "blackmatrix7_domain": {
                 "domain_suffix": len(bm7_domains["suffix"]),
                 "domain_exact": len(bm7_domains["exact"]),
@@ -878,7 +851,8 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
         "decisions": {
             "domain_keyword": "blackmatrix7 的 DOMAIN-KEYWORD 默认不进入生效规则，写入 dist/ad-keyword.list。advert、crashlytics、fenxi、umeng 这类关键字误杀高，而且 crashlytics 已在上游 skip-proxy 里被保留。",
             "url_regex": "只保留能锚定到具体广告域名的 URL-REGEX。纯路径片段（例如 /\\d+/resolve）丢弃。HTTPS 上的 URL-REGEX 需要 Shadowrocket 的 MITM 才会看得到路径。",
-            "ip": "保留全球单播地址。去掉私网、链路本地和 0.0.0.0/8。被更大网段盖住的小网段删掉。同一网段若本仓库规则没有 no-resolve，则保留解析匹配。",
+            "ip": "只使用 blackmatrix7 Advertising.list 和自定义额外名单里的 IP。保留全球单播地址，去掉私网、链路本地和 0.0.0.0/8，并删掉被更大网段盖住的小网段。blackmatrix7 的 IP 带 no-resolve。",
+            "excluded_local_ads": "不并入 johnshall 的 sr_ad_only.conf，也不并入上游配置里原来的内联广告段。",
             "config_order": "黑名单与国内外划分：内联 Reject 放在上游原来的广告段，手工 Proxy 仍在广告之前。白名单：内联 Reject 放在直连/代理规则之前。",
         },
     }
@@ -902,7 +876,7 @@ def write_outputs(suffixes, exact, kept_ips, regexes, user_keywords, excluded_ke
         f"# DOMAIN-SET,{RAW_BASE}/dist/ad-domain.list,REJECT",
         f"# suffix: {len(suffix_lines)}",
         f"# exact: {len(exact_lines)}",
-        "# sources: johnshall sr_ad_only + blackmatrix7 Advertising_Domain + anti-AD anti-ad-surge2",
+        "# sources: blackmatrix7 Advertising_Domain + anti-AD anti-ad-surge2",
     ]
     domain_text = "\n".join(domain_header + suffix_lines + exact_lines) + "\n"
     write_text(DIST / "ad-domain.list", domain_text)
@@ -1091,9 +1065,7 @@ def print_summary(stats: dict) -> None:
     final = stats["final"]
     print("\n===== 合并结果 =====")
     sources = stats["sources"]
-    print(
-        "本仓库广告后缀 {domain_suffix}  IP {ip}".format(**sources["local_sr_ad_only"])
-    )
+    print("已排除本仓库原有广告源（sr_ad_only.conf / 上游内联广告段）")
     print(
         "blackmatrix7 域名后缀 {domain_suffix}  精确域名 {domain_exact}".format(
             **sources["blackmatrix7_domain"]
