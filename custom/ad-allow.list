@@ -1,0 +1,15 @@
+# 自定义放行（允许）列表。
+# 这里的域名会在合并时从广告名单里去掉。
+# 如果一条放行域名仍然被更短的父后缀盖住，生成配置会在广告 DOMAIN-SET 之前
+# 加一条 DIRECT 例外，避免它被父后缀拒绝。
+#
+# 格式：
+#   .example.com              后缀：example.com 及其子域名都放行
+#   exact.example.com         只放行这一个主机名
+#   DOMAIN-SUFFIX,example.com
+#   DOMAIN,exact.example.com
+#   IP-CIDR,203.0.113.10/32   从广告 IP 规则里去掉这一段
+#
+# 以 # 开头的行是注释。下面是示例，去掉行首 # 才会生效。
+# .good.example.com
+# exact.example.com

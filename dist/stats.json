@@ -1,0 +1,94 @@
+{
+  "sources": {
+    "local_sr_ad_only": {
+      "domain_suffix": 50647,
+      "domain_exact": 0,
+      "ip": 128,
+      "invalid": 0,
+      "unsafe_suffix": 0,
+      "only_in_upstream_ad_config_suffix": 0,
+      "only_in_upstream_ad_config_ip": 0
+    },
+    "blackmatrix7_domain": {
+      "domain_suffix": 273956,
+      "domain_exact": 16436,
+      "invalid": 0,
+      "unsafe_suffix": 0,
+      "unsafe_samples": []
+    },
+    "blackmatrix7_rules": {
+      "domain_suffix": 0,
+      "domain_exact": 0,
+      "ip": 489,
+      "url_regex": 14,
+      "url_regex_kept": 12,
+      "url_regex_dropped": [
+        "/\\d+/resolve",
+        "/\\d+/sign_d"
+      ],
+      "domain_keyword_excluded": 278
+    },
+    "anti_ad_surge2": {
+      "domain_suffix": 100686,
+      "domain_exact": 0,
+      "invalid": 0,
+      "unsafe_suffix": 0,
+      "unsafe_samples": [],
+      "format": "DOMAIN-SET（行首点号表示后缀）。anti-ad-surge.txt 是同一批后缀的 DOMAIN-SUFFIX 行，更占内存；anti-ad-domains.txt 没有做后缀合并。"
+    },
+    "extra_block": {
+      "domain_suffix": 0,
+      "domain_exact": 0,
+      "ip": 0,
+      "url_regex": 0,
+      "domain_keyword": 0
+    },
+    "allow": {
+      "domain_suffix": 0,
+      "domain_exact": 0,
+      "ip": 0,
+      "removed_suffix_terminals": 0,
+      "removed_exact": 0,
+      "exceptions": 0
+    }
+  },
+  "dedupe": {
+    "duplicate_suffix": 137783,
+    "covered_by_parent_suffix": 2978,
+    "duplicate_exact": 0,
+    "exact_covered_by_suffix": 1965,
+    "ip": {
+      "invalid": 0,
+      "dropped_non_global_or_too_broad": [
+        "0.0.0.0/24",
+        "10.72.25.0/24",
+        "169.254.169.254/32"
+      ],
+      "duplicate_or_covered": 114,
+      "kept": 500,
+      "removed_by_allow": 0
+    }
+  },
+  "final": {
+    "domain_suffix": 284528,
+    "domain_exact": 14471,
+    "domain_total": 298999,
+    "ip": 500,
+    "url_regex": 12,
+    "user_keyword": 0,
+    "allow_exceptions": 0,
+    "keyword_excluded": 278,
+    "domains_first_added_by": {
+      "local": 50243,
+      "blackmatrix7": 238993,
+      "anti_ad": 9763,
+      "extra_block": 0
+    }
+  },
+  "decisions": {
+    "domain_keyword": "blackmatrix7 的 DOMAIN-KEYWORD 默认不进入生效规则，写入 dist/ad-keyword.list。advert、crashlytics、fenxi、umeng 这类关键字误杀高，而且 crashlytics 已在上游 skip-proxy 里被保留。",
+    "url_regex": "只保留能锚定到具体广告域名的 URL-REGEX。纯路径片段（例如 /\\d+/resolve）丢弃。HTTPS 上的 URL-REGEX 需要 Shadowrocket 的 MITM 才会看得到路径。",
+    "ip": "保留全球单播地址。去掉私网、链路本地和 0.0.0.0/8。被更大网段盖住的小网段删掉。同一网段若本仓库规则没有 no-resolve，则保留解析匹配。",
+    "config_order": "黑名单与国内外划分：广告引用放在上游原来的 Reject 段，手工 Proxy 仍在广告之前。白名单：广告引用放在直连/代理规则之前，与上游白名单+去广告的顺序一致。"
+  }
+}

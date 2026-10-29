@@ -1,71 +1,21 @@
-name: Release Shadowrocket Rules
+name: Upstream release (disabled on fork)
+
+# johnshall 原来的 release 工作流会 checkout build 分支，再 force-push 到 release。
+# 这个 fork 没有 build 分支，也没有上游构建用的密钥。原样启用会在 Actions 里失败，
+# force-push 还会冲掉合并后的广告规则。
+# 每日更新改由 merge-adblock.yml 负责。此工作流只保留手动入口，并且什么都不改。
 
 on:
-  schedule:
-    # 每日8时开始
-    - cron:  '0 23 * * *'
-  
-  push:
-    branches:
-      - build
-    paths-ignore: 
-      - '**.md'
-      - 'LICENSE'
-      
-  pull_request_target:
-    branches:
-      - build
-    paths-ignore: 
-      - '**.md'
-      - 'LICENSE'
-
   workflow_dispatch:
-  
+
+permissions:
+  contents: read
+
 jobs:
-  Release:
+  disabled:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: build
-          path: build
-
-      - uses: actions/checkout@v4
-        with:
-          ref: release
-          path: release
-
-      - name: Install requirements
-        run: pip3 install -r build/requirements.txt
-
-      - name: Build Rules
+      - name: Explain
         run: |
-          cd build || exit 1
-          ./factory/auto_build.sh
-      
-      - name: Move files
-        run: |
-          cd build || exit 1
-          cp *.conf ../release/
-          cp -r figure ../release/
-          cp LICENSE ../release/
-          cp readme.md ../release/
-      
-      - name: Update lazy rules
-        run: |
-          cd release || exit 1
-          rm lazy.conf lazy_group.conf
-          curl -O https://raw.githubusercontent.com/LOWERTOP/Shadowrocket/main/lazy.conf
-          curl -O https://raw.githubusercontent.com/LOWERTOP/Shadowrocket/main/lazy_group.conf
-        
-      - name: Remove commits
-        run: |
-          cd release || exit 1
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git checkout --orphan latest_branch
-          git add -A
-          git commit -am "Nightly build"
-          git branch -D release
-          git branch -m release
-          git push -f origin release
+          echo "Upstream release workflow is disabled on this fork."
+          echo "Merged ad-block rules are built by .github/workflows/merge-adblock.yml."
