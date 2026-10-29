@@ -89,6 +89,6 @@
     "domain_keyword": "blackmatrix7 的 DOMAIN-KEYWORD 默认不进入生效规则，写入 dist/ad-keyword.list。advert、crashlytics、fenxi、umeng 这类关键字误杀高，而且 crashlytics 已在上游 skip-proxy 里被保留。",
     "url_regex": "只保留能锚定到具体广告域名的 URL-REGEX。纯路径片段（例如 /\\d+/resolve）丢弃。HTTPS 上的 URL-REGEX 需要 Shadowrocket 的 MITM 才会看得到路径。",
     "ip": "保留全球单播地址。去掉私网、链路本地和 0.0.0.0/8。被更大网段盖住的小网段删掉。同一网段若本仓库规则没有 no-resolve，则保留解析匹配。",
-    "config_order": "黑名单与国内外划分：广告引用放在上游原来的 Reject 段，手工 Proxy 仍在广告之前。白名单：广告引用放在直连/代理规则之前，与上游白名单+去广告的顺序一致。"
+    "config_order": "黑名单与国内外划分：内联 Reject 放在上游原来的广告段，手工 Proxy 仍在广告之前。白名单：内联 Reject 放在直连/代理规则之前。"
   }
 }

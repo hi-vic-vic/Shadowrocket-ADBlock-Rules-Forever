@@ -2,15 +2,15 @@
 
 ## 本 fork 的合并去广告
 
-这个仓库是 [johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/johnshall/Shadowrocket-ADBlock-Rules-Forever) 的 fork。黑名单、白名单、国内外划分里的代理/直连规则仍与上游一致。广告部分改成三份名单合并后的结果：
+这个仓库是 [johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/johnshall/Shadowrocket-ADBlock-Rules-Forever) 的 fork。黑名单、白名单、国内外划分里的代理/直连规则仍与上游一致。广告段和上游一样，直接写成 `DOMAIN-SUFFIX,域名,Reject`、`DOMAIN,域名,Reject`、`IP-CIDR,...,Reject`，位置也与上游原来的广告段相同。名单是这三份合并、去重之后的结果：
 
 - 本仓库自己的广告规则（上游 `sr_ad_only.conf`）
-- [blackmatrix7 Advertising](https://github.com/blackmatrix7/ios_rule_script/tree/master/rule/Shadowrocket/Advertising) 的 `Advertising_Domain.list`，以及 `Advertising.list` 里的 IP-CIDR 和锚定到域名的 URL-REGEX
-- [anti-AD](https://github.com/privacy-protection-tools/anti-AD) 的 `anti-ad-surge2.txt`。这是 Shadowrocket 的 DOMAIN-SET 格式（行首 `.` 表示后缀），同一份名单里最省内存的一种。`anti-ad-surge.txt` 是等价的 `DOMAIN-SUFFIX` 行，体积更大；`anti-ad-domains.txt` 没有做后缀合并。
+- [blackmatrix7 Advertising](https://github.com/blackmatrix7/ios_rule_script/tree/master/rule/Shadowrocket/Advertising)
+- [anti-AD](https://github.com/privacy-protection-tools/anti-AD) 的 `anti-ad-surge2.txt`（DOMAIN-SET，行首 `.` 表示后缀）
 
-合并时会去掉重复域名，以及已经被更短父后缀盖住的域名。`custom/ad-allow.list` 用来放行，`custom/ad-block.list` 用来追加拦截。GitHub Actions 每天北京时间 08:00 重新生成，也可以在 Actions 页面手动运行 **Merge ad-block rules**。只有内容变化时才会提交。
+合并时会去掉重复域名，以及已经被更短父后缀盖住的域名。`custom/ad-allow.list` 用来放行，`custom/ad-block.list` 用来追加拦截。GitHub Actions 每天北京时间 08:00 重新生成这三份内联配置，也可以在 Actions 页面手动运行 **Merge ad-block rules**。只有内容变化时才会提交。
 
-blackmatrix7 的 DOMAIN-KEYWORD（约 278 条，含 `advert`、`crashlytics`、`fenxi`、`umeng`）默认不生效，单独放在 `dist/ad-keyword.list`。IP 规则去掉了私网、链路本地和 `0.0.0.0/24`。URL-REGEX 只保留能对上具体广告域名的条目；HTTPS 路径要开 MITM 才看得到。
+blackmatrix7 的 DOMAIN-KEYWORD（含 `advert`、`crashlytics`、`fenxi`、`umeng`）不写入配置，单独放在 `dist/ad-keyword.list`。IP 规则去掉了私网、链路本地和 `0.0.0.0/24`。URL-REGEX 只保留能对上具体广告域名的条目；HTTPS 路径要开 MITM 才看得到。
 
 ### 订阅地址
 
@@ -34,23 +34,16 @@ https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/
 https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_cnip_ad.conf
 ```
 
-这三份配置里的广告段都指向同一套合并名单，没有把几十万行写进配置：
+三份配置都内联了同一套广告规则，文件大约三十万行。用法和原来的 johnshall 配置一样：下载整份 `.conf` 即可，不用再单独加规则集。
 
-```
-https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-domain.list
-https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-rules.list
-```
-
-### 只把广告规则加进现有配置
-
-编辑配置的 `[Rule]`，策略选 **REJECT**：
+如果手机加载整份配置吃力，可以用同一份名单的可选 DOMAIN-SET / RULE-SET，自己写进别的配置，策略选 **REJECT**：
 
 ```
 DOMAIN-SET,https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-domain.list,REJECT
 RULE-SET,https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-rules.list,REJECT
 ```
 
-黑名单和国内外划分里，这两行放在手工 Proxy 之后、其余代理规则之前。白名单里放在直连/代理规则之前。上面三份完整配置已经按这个顺序放好。
+黑名单和国内外划分里，广告规则放在手工 Proxy 之后、其余代理规则之前。白名单里放在直连/代理规则之前。上面三份完整配置已经按这个顺序写好。
 
 ### 自己加减域名
 
