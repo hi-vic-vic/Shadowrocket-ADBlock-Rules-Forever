@@ -11,13 +11,13 @@ section of the ad configs) is not merged. Those configs are only used
 as the skeleton for proxy/direct rules.
 
 Outputs:
-  - sr_top500_banlist_ad.conf    blacklist proxy rules + inlined Reject ads
-  - sr_top500_whitelist_ad.conf  whitelist direct/proxy rules + inlined Reject ads
-  - sr_cnip_ad.conf              China/foreign split + inlined Reject ads
-  - dist/ad-domain.list          optional DOMAIN-SET of the same domains
-  - dist/ad-rules.list           optional RULE-SET (IP-CIDR / URL-REGEX / user keywords)
-  - dist/ad-keyword.list         optional DOMAIN-KEYWORD, not inlined
-  - dist/ad-allow.list           DIRECT exceptions, only when the conf also inlines them
+  - sr_top500_banlist_ad.conf    blacklist proxy rules + DOMAIN-SET/RULE-SET ads
+  - sr_top500_whitelist_ad.conf  whitelist direct/proxy rules + DOMAIN-SET/RULE-SET ads
+  - sr_cnip_ad.conf              China/foreign split + DOMAIN-SET/RULE-SET ads
+  - dist/ad-domain.list          DOMAIN-SET referenced by the configs
+  - dist/ad-rules.list           RULE-SET (IP-CIDR / URL-REGEX / user keywords)
+  - dist/ad-keyword.list         optional DOMAIN-KEYWORD, not referenced
+  - dist/ad-allow.list           DIRECT exceptions, referenced only when needed
   - dist/stats.json
 
 Non-ad upstream files are refreshed in place when upstream content changes.
@@ -585,30 +585,18 @@ def split_ad_region(lines: list[str]) -> tuple[list[str], list[str]]:
     return lines[:region_start], lines[region_end:]
 
 
-def render_inline_block(suffixes, exact, kept_ips, regexes, user_keywords, exceptions) -> list[str]:
-    suffix_domains = sorted(domain for domain, _src in suffixes)
-    exact_domains = sorted(exact)
+def render_reference_block(include_allow: bool) -> list[str]:
     lines = [
         "",
         BEGIN_MARK,
         "# 合并去广告：blackmatrix7 Advertising + anti-AD",
-        "# 与上游相同，直接写成 Reject 行。dist/*.list 是同一份名单的可选 DOMAIN-SET/RULE-SET。",
-        f"# domain-suffix: {len(suffix_domains)}",
-        f"# domain: {len(exact_domains)}",
-        f"# ip-cidr: {len(kept_ips)}",
-        f"# url-regex: {len(regexes)}",
+        "# 域名和 IP 放在 dist/ 下，用 DOMAIN-SET / RULE-SET 引用，避免把几十万行载入配置。",
     ]
-    for kind, domain in exceptions:
-        lines.append(f"{kind},{domain},DIRECT")
-    lines.extend(f"DOMAIN-SUFFIX,{domain},Reject" for domain in suffix_domains)
-    lines.extend(f"DOMAIN,{domain},Reject" for domain in exact_domains)
-    for item in kept_ips:
-        line = f"IP-CIDR,{item['net']},Reject"
-        if item["no_resolve"]:
-            line += ",no-resolve"
-        lines.append(line)
-    lines.extend(f"URL-REGEX,{pattern},Reject" for pattern in regexes)
-    lines.extend(f"DOMAIN-KEYWORD,{keyword},Reject" for keyword in user_keywords)
+    if include_allow:
+        lines.append(f"RULE-SET,{RAW_BASE}/dist/ad-allow.list,DIRECT")
+    lines.append(f"DOMAIN-SET,{RAW_BASE}/dist/ad-domain.list,REJECT")
+    lines.append(f"RULE-SET,{RAW_BASE}/dist/ad-rules.list,REJECT")
+    lines.append("# 可选：dist/ad-keyword.list 是 blackmatrix7 的 DOMAIN-KEYWORD，默认不启用。")
     lines.append(END_MARK)
     lines.append("")
     return lines
@@ -853,14 +841,14 @@ def build(loaded: dict[str, tuple[str, str]]) -> dict:
             "url_regex": "只保留能锚定到具体广告域名的 URL-REGEX。纯路径片段（例如 /\\d+/resolve）丢弃。HTTPS 上的 URL-REGEX 需要 Shadowrocket 的 MITM 才会看得到路径。",
             "ip": "只使用 blackmatrix7 Advertising.list 和自定义额外名单里的 IP。保留全球单播地址，去掉私网、链路本地和 0.0.0.0/8，并删掉被更大网段盖住的小网段。blackmatrix7 的 IP 带 no-resolve。",
             "excluded_local_ads": "不并入 johnshall 的 sr_ad_only.conf，也不并入上游配置里原来的内联广告段。",
-            "config_order": "黑名单与国内外划分：内联 Reject 放在上游原来的广告段，手工 Proxy 仍在广告之前。白名单：内联 Reject 放在直连/代理规则之前。",
+            "config_order": "黑名单与国内外划分：DOMAIN-SET/RULE-SET 放在上游原来的广告段，手工 Proxy 仍在广告之前。白名单：引用放在直连/代理规则之前。",
         },
     }
 
     if stats["final"]["domain_total"] < 100_000:
         raise SystemExit(f"合并后的域名少得不正常: {stats['final']['domain_total']}")
 
-    block = render_inline_block(suffixes, exact, kept_ips, regexes, user_keywords, exceptions)
+    block = render_reference_block(bool(exceptions))
     write_outputs(suffixes, exact, kept_ips, regexes, user_keywords, excluded_keywords, exceptions, stats)
     write_configs(loaded, block)
     refresh_plain_configs(loaded)
@@ -909,7 +897,7 @@ def write_outputs(suffixes, exact, kept_ips, regexes, user_keywords, excluded_ke
     if exceptions:
         allow_lines = [
             "# Shadowrocket RULE-SET，在配置里以 DIRECT 引用，并且放在广告 DOMAIN-SET 之前。",
-            "# 这些域名被一条更短的广告后缀盖住。三份 .conf 会在 Reject 段之前内联同样的 DIRECT 行。",
+            "# 这些域名被一条更短的广告后缀盖住。三份 .conf 会在 DOMAIN-SET 之前用 DIRECT 引用本文件。",
         ]
         allow_lines.extend(f"{kind},{domain}" for kind, domain in exceptions)
         write_text(DIST / "ad-allow.list", "\n".join(allow_lines) + "\n")
@@ -930,12 +918,12 @@ def write_configs(loaded: dict[str, tuple[str, str]], block: list[str]) -> None:
         if before != after:
             raise SystemExit(f"{name} 的非广告规则被改动了，停止写入")
         reject_count = sum(1 for line in rebuilt.splitlines() if is_reject_line(line))
-        if BEGIN_MARK not in rebuilt or reject_count < 100_000:
-            raise SystemExit(f"{name} 内联广告规则数量异常: {reject_count}")
-        if "/dist/ad-domain.list" in rebuilt or "/dist/ad-rules.list" in rebuilt:
-            raise SystemExit(f"{name} 仍在用 URL 引用广告名单")
+        domain_set = f"DOMAIN-SET,{RAW_BASE}/dist/ad-domain.list,REJECT"
+        rule_set = f"RULE-SET,{RAW_BASE}/dist/ad-rules.list,REJECT"
+        if reject_count != 0 or domain_set not in rebuilt or rule_set not in rebuilt:
+            raise SystemExit(f"{name} 广告引用异常: reject={reject_count}")
         write_text(ROOT / name, rebuilt)
-        print(f"写出 {name}: 内联 Reject {reject_count} 条，保留非广告规则 {len(after)} 条")
+        print(f"写出 {name}: 保留非广告规则 {len(after)} 条")
 
 
 def refresh_plain_configs(loaded: dict[str, tuple[str, str]]) -> None:
@@ -997,21 +985,13 @@ def self_test() -> None:
             "",
         ]
     )
-    allow_block = [
-        "",
-        BEGIN_MARK,
-        "DOMAIN-SUFFIX,safe.example,DIRECT",
-        "DOMAIN-SUFFIX,merged.example,Reject",
-        "IP-CIDR,1.2.3.4/32,Reject,no-resolve",
-        END_MARK,
-        "",
-    ]
+    allow_block = render_reference_block(True)
     rebuilt = rebuild_config(skeleton, allow_block)
     assert "DOMAIN-SUFFIX,ad.example,Reject" not in rebuilt
     assert "DOMAIN-SUFFIX,icloud-content.com,Direct" in rebuilt
     assert "DOMAIN-SUFFIX,tedcdn.com,Proxy" in rebuilt
-    assert rebuilt.index("DOMAIN-SUFFIX,safe.example,DIRECT") < rebuilt.index("DOMAIN-SUFFIX,merged.example,Reject")
-    assert rebuilt.index("DOMAIN-SUFFIX,merged.example,Reject") < rebuilt.index("DOMAIN-SUFFIX,icloud-content.com,Direct")
+    assert rebuilt.index("ad-allow.list,DIRECT") < rebuilt.index("DOMAIN-SET,")
+    assert rebuilt.index("DOMAIN-SET,") < rebuilt.index("DOMAIN-SUFFIX,icloud-content.com,Direct")
     assert significant_rules(skeleton.splitlines()) == significant_rules(rebuilt.splitlines())
     assert is_reject_line("IP-CIDR,1.2.3.4/32,Reject,no-resolve")
 
@@ -1030,21 +1010,14 @@ def self_test() -> None:
             "",
         ]
     )
-    ban_block = [
-        "",
-        BEGIN_MARK,
-        "DOMAIN-SUFFIX,merged.example,Reject",
-        END_MARK,
-        "",
-    ]
+    ban_block = render_reference_block(False)
     rebuilt_ban = rebuild_config(ban, ban_block)
-    assert rebuilt_ban.index("DOMAIN-SUFFIX,tedcdn.com,Proxy") < rebuilt_ban.index("DOMAIN-SUFFIX,merged.example,Reject")
-    assert rebuilt_ban.index("DOMAIN-SUFFIX,merged.example,Reject") < rebuilt_ban.index("DOMAIN-SUFFIX,goosevpn.com,Proxy")
+    assert rebuilt_ban.index("DOMAIN-SUFFIX,tedcdn.com,Proxy") < rebuilt_ban.index("DOMAIN-SET,")
+    assert rebuilt_ban.index("DOMAIN-SET,") < rebuilt_ban.index("DOMAIN-SUFFIX,goosevpn.com,Proxy")
     assert "手工定义的 Reject" not in rebuilt_ban
     assert significant_rules(ban.splitlines()) == significant_rules(rebuilt_ban.splitlines())
-    # Regenerating an already inlined file replaces the marked block once.
     rebuilt_twice = rebuild_config(rebuilt_ban, ban_block)
-    assert rebuilt_twice.count("DOMAIN-SUFFIX,merged.example,Reject") == 1
+    assert rebuilt_twice.count(f"DOMAIN-SET,{RAW_BASE}/dist/ad-domain.list,REJECT") == 1
 
     kept, info = merge_ips(
         [

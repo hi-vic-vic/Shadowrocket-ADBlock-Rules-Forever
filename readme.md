@@ -2,14 +2,14 @@
 
 ## 本 fork 的合并去广告
 
-这个仓库是 [johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/johnshall/Shadowrocket-ADBlock-Rules-Forever) 的 fork。黑名单、白名单、国内外划分里的代理/直连规则仍与上游一致。广告段和上游一样，直接写成 `DOMAIN-SUFFIX,域名,Reject`、`DOMAIN,域名,Reject`、`IP-CIDR,...,Reject`，位置也与上游原来的广告段相同。名单是这两份外部来源合并、去重之后的结果：
+这个仓库是 [johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/johnshall/Shadowrocket-ADBlock-Rules-Forever) 的 fork。黑名单、白名单、国内外划分里的代理/直连规则仍与上游一致。广告段放在上游原来的位置，用 DOMAIN-SET / RULE-SET 引用合并名单，策略是 REJECT。名单是这两份外部来源合并、去重之后的结果：
 
 - [blackmatrix7 Advertising](https://github.com/blackmatrix7/ios_rule_script/tree/master/rule/Shadowrocket/Advertising) 的域名，以及 `Advertising.list` 里的 IP-CIDR 和锚定到域名的 URL-REGEX
 - [anti-AD](https://github.com/privacy-protection-tools/anti-AD) 的 `anti-ad-surge2.txt`（DOMAIN-SET，行首 `.` 表示后缀）
 
 本仓库原来的广告规则（`sr_ad_only.conf` 和上游配置里的内联广告段）不进入合并结果。黑名单、白名单、国内外划分的代理/直连规则保持上游原样。
 
-合并时会去掉重复域名，以及已经被更短父后缀盖住的域名。`custom/ad-allow.list` 用来放行，`custom/ad-block.list` 用来追加拦截。GitHub Actions 每天北京时间 08:00 重新生成这三份内联配置，也可以在 Actions 页面手动运行 **Merge ad-block rules**。只有内容变化时才会提交。
+合并时会去掉重复域名，以及已经被更短父后缀盖住的域名。`custom/ad-allow.list` 用来放行，`custom/ad-block.list` 用来追加拦截。GitHub Actions 每天北京时间 08:00 重新生成配置和 `dist/` 名单，也可以在 Actions 页面手动运行 **Merge ad-block rules**。只有内容变化时才会提交。
 
 blackmatrix7 的 DOMAIN-KEYWORD（含 `advert`、`crashlytics`、`fenxi`、`umeng`）不写入配置，单独放在 `dist/ad-keyword.list`。IP 规则去掉了私网、链路本地和 `0.0.0.0/24`。URL-REGEX 只保留能对上具体广告域名的条目；HTTPS 路径要开 MITM 才看得到。
 
@@ -35,22 +35,20 @@ https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/
 https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_cnip_ad.conf
 ```
 
-三份配置都内联了同一套广告规则，文件大约三十万行。用法和原来的 johnshall 配置一样：下载整份 `.conf` 即可，不用再单独加规则集。
-
-如果手机加载整份配置吃力，可以用同一份名单的可选 DOMAIN-SET / RULE-SET，自己写进别的配置，策略选 **REJECT**：
+三份配置本身只有代理/直连规则加上这两行引用，广告域名在单独的文件里，Shadowrocket 按 DOMAIN-SET 加载，避免把三十万行 Reject 写进配置：
 
 ```
 DOMAIN-SET,https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-domain.list,REJECT
 RULE-SET,https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-rules.list,REJECT
 ```
 
-黑名单和国内外划分里，广告规则放在手工 Proxy 之后、其余代理规则之前。白名单里放在直连/代理规则之前。上面三份完整配置已经按这个顺序写好。
+黑名单和国内外划分里，这两行在手工 Proxy 之后、其余代理规则之前。白名单里在直连/代理规则之前。上面三份完整配置已经按这个顺序写好。只想把广告加进自己的配置时，把这两行贴进 `[Rule]`，策略选 **REJECT**。
 
 ### 自己加减域名
 
 1. 放行写在 `custom/ad-allow.list`，额外拦截写在 `custom/ad-block.list`。以 `.` 开头表示后缀。
 2. 提交到 `release`，或等每天的 Action，也可以在 Actions 里手动跑 **Merge ad-block rules**。
-3. 如果放行的域名被一条更短的广告后缀盖住，配置会在广告名单前自动加一条 `DIRECT` 例外。
+3. 如果放行的域名被一条更短的广告后缀盖住，配置会在 DOMAIN-SET 之前自动引用一条 `DIRECT` 例外。
 
 ### 启用自动更新
 
