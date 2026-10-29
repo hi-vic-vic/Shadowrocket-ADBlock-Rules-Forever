@@ -1,5 +1,72 @@
 ## 最完善的 iOS Shadowrocket规则
 
+## 本 fork 的合并去广告
+
+这个仓库是 [johnshall/Shadowrocket-ADBlock-Rules-Forever](https://github.com/johnshall/Shadowrocket-ADBlock-Rules-Forever) 的 fork。黑名单、白名单、国内外划分里的代理/直连规则仍与上游一致。广告部分改成三份名单合并后的结果：
+
+- 本仓库自己的广告规则（上游 `sr_ad_only.conf`）
+- [blackmatrix7 Advertising](https://github.com/blackmatrix7/ios_rule_script/tree/master/rule/Shadowrocket/Advertising) 的 `Advertising_Domain.list`，以及 `Advertising.list` 里的 IP-CIDR 和锚定到域名的 URL-REGEX
+- [anti-AD](https://github.com/privacy-protection-tools/anti-AD) 的 `anti-ad-surge2.txt`。这是 Shadowrocket 的 DOMAIN-SET 格式（行首 `.` 表示后缀），同一份名单里最省内存的一种。`anti-ad-surge.txt` 是等价的 `DOMAIN-SUFFIX` 行，体积更大；`anti-ad-domains.txt` 没有做后缀合并。
+
+合并时会去掉重复域名，以及已经被更短父后缀盖住的域名。`custom/ad-allow.list` 用来放行，`custom/ad-block.list` 用来追加拦截。GitHub Actions 每天北京时间 08:00 重新生成，也可以在 Actions 页面手动运行 **Merge ad-block rules**。只有内容变化时才会提交。
+
+blackmatrix7 的 DOMAIN-KEYWORD（约 278 条，含 `advert`、`crashlytics`、`fenxi`、`umeng`）默认不生效，单独放在 `dist/ad-keyword.list`。IP 规则去掉了私网、链路本地和 `0.0.0.0/24`。URL-REGEX 只保留能对上具体广告域名的条目；HTTPS 路径要开 MITM 才看得到。
+
+### 订阅地址
+
+在 Shadowrocket 底部打开 **配置**，点右上角 **+**，把下面的地址粘贴到 URL，点 **下载**。下载后点选这份配置。如果已经连着，断开再连一次。
+
+黑名单 + 合并去广告（不确定的网站直连，被墙的走代理）：
+
+```
+https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_top500_banlist_ad.conf
+```
+
+白名单 + 合并去广告（不确定的网站走代理，top500 里可直连的网站和中国网站直连）：
+
+```
+https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_top500_whitelist_ad.conf
+```
+
+国内外划分 + 合并去广告（`sr_cnip_ad.conf`，中国 IP 直连，其余走代理）：
+
+```
+https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_cnip_ad.conf
+```
+
+这三份配置里的广告段都指向同一套合并名单，没有把几十万行写进配置：
+
+```
+https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-domain.list
+https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-rules.list
+```
+
+### 只把广告规则加进现有配置
+
+编辑配置的 `[Rule]`，策略选 **REJECT**：
+
+```
+DOMAIN-SET,https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-domain.list,REJECT
+RULE-SET,https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-rules.list,REJECT
+```
+
+黑名单和国内外划分里，这两行放在手工 Proxy 之后、其余代理规则之前。白名单里放在直连/代理规则之前。上面三份完整配置已经按这个顺序放好。
+
+### 自己加减域名
+
+1. 放行写在 `custom/ad-allow.list`，额外拦截写在 `custom/ad-block.list`。以 `.` 开头表示后缀。
+2. 提交到 `release`，或等每天的 Action，也可以在 Actions 里手动跑 **Merge ad-block rules**。
+3. 如果放行的域名被一条更短的广告后缀盖住，配置会在广告名单前自动加一条 `DIRECT` 例外。
+
+### 启用自动更新
+
+GitHub 对 fork 默认关闭 Actions。合并到 `release` 之后，打开本仓库的 **Settings → Actions → General**，允许 Actions。然后到 **Actions → Merge ad-block rules → Run workflow** 跑一次。之后每天北京时间 08:00 会自己跑。
+
+直连去广告、代理去广告、回国规则这几份上游配置仍是原来的内联广告列表，不在这次合并里。页面下方的二维码仍指向上游站点，请用上面的 raw 地址订阅。
+
+---
+
+
 ### 试更新公告
 
 由于原作者 [h2y](https://github.com/h2y) 已停止维护 [Shadowrocket-ADBlock-Rules](https://github.com/h2y/Shadowrocket-ADBlock-Rules)，Shadowrocket 再无划分如此细致精美的规则。因此我决定用自己有限的能力和技术对该项目以个人的理解进行更新与维护。**所有规则都会在每天北京时间 8:00 更新发布。**
@@ -153,7 +220,7 @@ INTP | Jack of all trades | I use Arch BTW
 - 直连：正常的网站
 - 包含广告过滤
 
-规则地址：<https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_top500_banlist_ad.conf>
+规则地址：<https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_top500_banlist_ad.conf>
 
 ![二维码](https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/figure/sr_top500_banlist_ad.png)
 
@@ -165,7 +232,7 @@ INTP | Jack of all trades | I use Arch BTW
 - 代理：默认代理其余的所有境外网站
 - 包含广告过滤
 
-规则地址：<https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_top500_whitelist_ad.conf>
+规则地址：<https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_top500_whitelist_ad.conf>
 
 ![二维码](https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/figure/sr_top500_whitelist_ad.png)
 
@@ -200,7 +267,7 @@ INTP | Jack of all trades | I use Arch BTW
 
 国内外划分，对中国网站直连，外国网站代理。包含广告过滤。国外网站总是走代理，对于某些港澳台网站，速度反而会比直连更快。
 
-规则地址：<https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/sr_cnip_ad.conf>
+规则地址：<https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_cnip_ad.conf>
 
 ![二维码](https://johnshall.github.io/Shadowrocket-ADBlock-Rules-Forever/figure/sr_cnip_ad.png)
 

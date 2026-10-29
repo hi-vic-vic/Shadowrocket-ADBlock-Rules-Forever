@@ -1,0 +1,12 @@
+# 自定义额外拦截列表。合并时和上游广告名单一起去重。
+# 放行列表优先：同一个域名如果两边都有，以放行为准。
+#
+# 格式与 custom/ad-allow.list 相同，另外支持：
+#   URL-REGEX,^https?:\/\/ads\.example\.com\/
+#   DOMAIN-KEYWORD,some-unique-ad-token
+#
+# DOMAIN-KEYWORD 会写进实际生效的 RULE-SET。请只写很长、很具体的关键字。
+#
+# 以 # 开头的行是注释。下面是示例，去掉行首 # 才会生效。
+# .extra-ads.example.com
+# IP-CIDR,203.0.113.10/32
