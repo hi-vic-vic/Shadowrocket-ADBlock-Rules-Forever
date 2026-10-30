@@ -20,17 +20,23 @@ GitHub Actions 每天北京时间 08:00 运行 **Merge ad-block rules**，也可
 
 在 Shadowrocket 底部打开 **配置**，点右上角 **+**，把地址粘贴到 URL，点 **下载**，再点选这份配置。已经连着的话，断开再连一次。
 
+也可以在小火箭首页点左上角的扫码图标，扫下面的二维码直接添加。
+
 黑名单规则 + 去广告：
 
 ```
 https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_top500_banlist_ad.conf
 ```
 
+<img src="qr/sr_top500_banlist_ad.png" width="200">
+
 白名单规则 + 去广告：
 
 ```
 https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/sr_top500_whitelist_ad.conf
 ```
+
+<img src="qr/sr_top500_whitelist_ad.png" width="200">
 
 两份配置里的广告段都是：
 
