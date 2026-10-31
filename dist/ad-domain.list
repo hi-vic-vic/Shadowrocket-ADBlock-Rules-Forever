@@ -1,7 +1,7 @@
 # Shadowrocket DOMAIN-SET
 # 行首有点：匹配该域名及其子域名。行首无点：只匹配这一个主机名。
 # DOMAIN-SET,https://raw.githubusercontent.com/hi-vic-vic/Shadowrocket-ADBlock-Rules-Forever/release/dist/ad-domain.list,REJECT
-# suffix: 284194
+# suffix: 284193
 # exact: 14472
 # sources: blackmatrix7 Advertising_Domain + anti-AD anti-ad-surge2
 .0.avmarket.rs
@@ -174871,7 +174871,6 @@
 .placksslaloms.help
 .placodegnawers.guru
 .placoidtobyman.com
-.pladform.ru
 .plagaegasping.cyou
 .plageslegcamber.cyou
 .plagosedroopy.shop
