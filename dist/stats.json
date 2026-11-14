@@ -20,7 +20,7 @@
       "domain_keyword_excluded": 278
     },
     "anti_ad_surge2": {
-      "domain_suffix": 101636,
+      "domain_suffix": 102656,
       "domain_exact": 0,
       "invalid": 0,
       "unsafe_suffix": 0,
@@ -44,8 +44,8 @@
     }
   },
   "dedupe": {
-    "duplicate_suffix": 86508,
-    "covered_by_parent_suffix": 2583,
+    "duplicate_suffix": 86490,
+    "covered_by_parent_suffix": 2585,
     "duplicate_exact": 0,
     "exact_covered_by_suffix": 1964,
     "ip": {
@@ -61,17 +61,17 @@
     }
   },
   "final": {
-    "domain_suffix": 286501,
+    "domain_suffix": 287537,
     "domain_exact": 14472,
-    "domain_total": 300973,
+    "domain_total": 302009,
     "ip": 486,
     "url_regex": 12,
     "user_keyword": 0,
     "allow_exceptions": 0,
     "keyword_excluded": 278,
     "domains_first_added_by": {
-      "blackmatrix7": 288183,
-      "anti_ad": 12790,
+      "blackmatrix7": 288180,
+      "anti_ad": 13829,
       "extra_block": 0
     }
   },
